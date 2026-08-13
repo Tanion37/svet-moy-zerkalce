@@ -196,7 +196,7 @@ def add_cut_grid(
                 )
 
 
-def _textbox(
+def _card_shape(
     slide,
     left_mm: float,
     top_mm: float,
@@ -204,18 +204,27 @@ def _textbox(
     anchor: MSO_ANCHOR,
     pad_scale: float = 1.0,
 ):
-    pad_x = 2.0 * SCALE * pad_scale
-    pad_y = 1.6 * SCALE * pad_scale
-    box = slide.shapes.add_textbox(
-        Mm(left_mm + pad_x),
-        Mm(top_mm + pad_y),
-        Mm(CARD_W_MM - 2 * pad_x),
-        Mm(CARD_H_MM - 2 * pad_y),
+    """Card as a shape; label lives in its text_frame (not a separate textbox)."""
+    shape = slide.shapes.add_shape(
+        MSO_SHAPE.RECTANGLE,
+        Mm(left_mm),
+        Mm(top_mm),
+        Mm(CARD_W_MM),
+        Mm(CARD_H_MM),
     )
-    _no_shadow(box)
-    tf = box.text_frame
+    shape.fill.background()
+    shape.line.fill.background()
+    _no_shadow(shape)
+
+    pad_x = Mm(2.0 * SCALE * pad_scale)
+    pad_y = Mm(1.6 * SCALE * pad_scale)
+    tf = shape.text_frame
     tf.word_wrap = True
     tf.vertical_anchor = anchor
+    tf.margin_left = pad_x
+    tf.margin_right = pad_x
+    tf.margin_top = pad_y
+    tf.margin_bottom = pad_y
     return tf
 
 
@@ -230,7 +239,7 @@ def add_text_card(
     color: RGBColor = INK,
     size: float = MAIN_PT,
 ) -> None:
-    tf = _textbox(slide, left_mm, top_mm, anchor=anchor)
+    tf = _card_shape(slide, left_mm, top_mm, anchor=anchor)
     p0 = tf.paragraphs[0]
     p0.alignment = PP_ALIGN.CENTER
     p0.space_before = Pt(0)
@@ -241,7 +250,7 @@ def add_text_card(
 def add_ty_luchshiy_card(
     slide, left_mm: float, top_mm: float, player: int, color: RGBColor
 ) -> None:
-    tf = _textbox(slide, left_mm, top_mm, anchor=MSO_ANCHOR.MIDDLE)
+    tf = _card_shape(slide, left_mm, top_mm, anchor=MSO_ANCHOR.MIDDLE)
     p0 = tf.paragraphs[0]
     p0.alignment = PP_ALIGN.CENTER
     p0.space_before = Pt(0)
@@ -256,7 +265,9 @@ def add_ty_luchshiy_card(
 
 
 def add_bez_card(slide, left_mm: float, top_mm: float) -> None:
-    tf = _textbox(slide, left_mm, top_mm, anchor=MSO_ANCHOR.TOP, pad_scale=0.9)
+    tf = _card_shape(
+        slide, left_mm, top_mm, anchor=MSO_ANCHOR.TOP, pad_scale=0.9
+    )
 
     p0 = tf.paragraphs[0]
     p0.alignment = PP_ALIGN.CENTER
@@ -374,6 +385,6 @@ if __name__ == "__main__":
     )
     print(
         f"Font: main {MAIN_PT} pt; memo/player label smaller; "
-        "faces bottom, backs top"
+        "faces bottom, backs top; text on card shape"
     )
     print("Slides: 1 faces, 2 backs (column-mirrored), 3 other + Без тормозов")
