@@ -13,6 +13,8 @@
 - [rules.md](rules.md) — правила
 - [game-content.md](game-content.md) — существа, части запросов
 - [request-combinations.md](request-combinations.md) — все сочетания лицевой × оборотной
+- [output/svet-moy-zerkalce-cards.pptx](output/svet-moy-zerkalce-cards.pptx) — PnP-листы карт (A4)
+- [scripts/build_prototype_pptx.py](scripts/build_prototype_pptx.py) — сборка PPTX
 
 ## Содержание
 
