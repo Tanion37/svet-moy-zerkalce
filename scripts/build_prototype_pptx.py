@@ -45,8 +45,10 @@ MARGIN_Y_MM = (SLIDE_H_MM - CONTENT_H) / 2
 BORDER_COLOR = RGBColor(0xC0, 0xC0, 0xC0)
 INK = RGBColor(0x1A, 0x1A, 0x1A)
 
-MIN_PT = 8.0
-PREF_PT = 10.0
+MAIN_PT = 20.0
+MEMO_TITLE_PT = 10.0
+MEMO_BODY_PT = 8.0
+PLAYER_LABEL_PT = 8.0
 
 FACES: list[str] = [
     "Предложи ингредиенты любовного зелья для",
@@ -94,24 +96,14 @@ BACKS: list[str] = [
     "величайших злодеев в истории",
 ]
 
-# Distinct readable ink colors (no card fill)
 PLAYER_COLORS: list[RGBColor] = [
-    RGBColor(0xC6, 0x28, 0x28),  # 1 red
-    RGBColor(0x15, 0x65, 0xC0),  # 2 blue
-    RGBColor(0x2E, 0x7D, 0x32),  # 3 green
-    RGBColor(0xEF, 0x6C, 0x00),  # 4 orange
-    RGBColor(0x6A, 0x1B, 0x9A),  # 5 purple
-    RGBColor(0x00, 0x83, 0x8F),  # 6 teal
+    RGBColor(0xC6, 0x28, 0x28),
+    RGBColor(0x15, 0x65, 0xC0),
+    RGBColor(0x2E, 0x7D, 0x32),
+    RGBColor(0xEF, 0x6C, 0x00),
+    RGBColor(0x6A, 0x1B, 0x9A),
+    RGBColor(0x00, 0x83, 0x8F),
 ]
-
-MEMO_TITLE = "Памятка"
-MEMO_BODY = (
-    "1. Открой зеркало-запрос\n"
-    "2. Ответ из букв (рубашка = джокер)\n"
-    "3. Кинь «Ты лучший!» другому\n"
-    "4. Больше голосов — лицевая карта\n"
-    "5. Буквы влево; если <10 — добор справа"
-)
 
 BEZ_TITLE = "Без тормозов"
 BEZ_BODY = (
@@ -120,10 +112,6 @@ BEZ_BODY = (
     "• Не успел — пропуск (не цель голоса, сам кидает)\n"
     "• Ничья голосов: «Я первый» побеждает один"
 )
-
-
-def _pt_for(text: str, *, long_if_over: int) -> float:
-    return MIN_PT if len(text) > long_if_over else PREF_PT
 
 
 def _no_shadow(shape) -> None:
@@ -208,7 +196,14 @@ def add_cut_grid(
                 )
 
 
-def _textbox(slide, left_mm: float, top_mm: float, pad_scale: float = 1.0):
+def _textbox(
+    slide,
+    left_mm: float,
+    top_mm: float,
+    *,
+    anchor: MSO_ANCHOR,
+    pad_scale: float = 1.0,
+):
     pad_x = 2.0 * SCALE * pad_scale
     pad_y = 1.6 * SCALE * pad_scale
     box = slide.shapes.add_textbox(
@@ -220,7 +215,7 @@ def _textbox(slide, left_mm: float, top_mm: float, pad_scale: float = 1.0):
     _no_shadow(box)
     tf = box.text_frame
     tf.word_wrap = True
-    tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+    tf.vertical_anchor = anchor
     return tf
 
 
@@ -230,53 +225,51 @@ def add_text_card(
     top_mm: float,
     text: str,
     *,
+    anchor: MSO_ANCHOR,
     bold: bool = True,
     color: RGBColor = INK,
-    long_if_over: int = 36,
+    size: float = MAIN_PT,
 ) -> None:
-    tf = _textbox(slide, left_mm, top_mm)
+    tf = _textbox(slide, left_mm, top_mm, anchor=anchor)
     p0 = tf.paragraphs[0]
     p0.alignment = PP_ALIGN.CENTER
     p0.space_before = Pt(0)
     p0.space_after = Pt(0)
-    _add_run(p0, text, _pt_for(text, long_if_over=long_if_over), bold=bold, color=color)
+    _add_run(p0, text, size, bold=bold, color=color)
 
 
 def add_ty_luchshiy_card(
     slide, left_mm: float, top_mm: float, player: int, color: RGBColor
 ) -> None:
-    tf = _textbox(slide, left_mm, top_mm)
+    tf = _textbox(slide, left_mm, top_mm, anchor=MSO_ANCHOR.MIDDLE)
     p0 = tf.paragraphs[0]
     p0.alignment = PP_ALIGN.CENTER
     p0.space_before = Pt(0)
     p0.space_after = Pt(0)
-    _add_run(p0, "Ты лучший!", PREF_PT, bold=True, color=color)
+    _add_run(p0, "Ты лучший!", MAIN_PT, bold=True, color=color)
 
     p1 = tf.add_paragraph()
     p1.alignment = PP_ALIGN.CENTER
     p1.space_before = Pt(4)
     p1.space_after = Pt(0)
-    _add_run(p1, f"Игрок {player}", MIN_PT, bold=False, color=color)
+    _add_run(p1, f"Игрок {player}", PLAYER_LABEL_PT, bold=False, color=color)
 
 
-def add_memo_card(
-    slide, left_mm: float, top_mm: float, title: str, body: str
-) -> None:
-    tf = _textbox(slide, left_mm, top_mm, pad_scale=0.9)
-    tf.vertical_anchor = MSO_ANCHOR.TOP
+def add_bez_card(slide, left_mm: float, top_mm: float) -> None:
+    tf = _textbox(slide, left_mm, top_mm, anchor=MSO_ANCHOR.TOP, pad_scale=0.9)
 
     p0 = tf.paragraphs[0]
     p0.alignment = PP_ALIGN.CENTER
     p0.space_before = Pt(0)
     p0.space_after = Pt(2)
-    _add_run(p0, title, PREF_PT, bold=True)
+    _add_run(p0, BEZ_TITLE, MEMO_TITLE_PT, bold=True)
 
-    for line in body.split("\n"):
+    for line in BEZ_BODY.split("\n"):
         p = tf.add_paragraph()
         p.alignment = PP_ALIGN.LEFT
         p.space_before = Pt(0)
         p.space_after = Pt(0)
-        _add_run(p, line, MIN_PT, bold=False)
+        _add_run(p, line, MEMO_BODY_PT, bold=False)
 
 
 def add_face_sheet(slide, left0: float, top0: float) -> None:
@@ -289,7 +282,7 @@ def add_face_sheet(slide, left0: float, top0: float) -> None:
             left0 + col * CARD_W_MM,
             top0 + row * CARD_H_MM,
             text,
-            long_if_over=32,
+            anchor=MSO_ANCHOR.BOTTOM,
         )
     add_cut_grid(slide, left0, top0)
 
@@ -306,17 +299,16 @@ def add_back_sheet(slide, left0: float, top0: float) -> None:
                 left0 + col * CARD_W_MM,
                 top0 + row * CARD_H_MM,
                 BACKS[face_idx],
-                long_if_over=28,
+                anchor=MSO_ANCHOR.TOP,
             )
     add_cut_grid(slide, left0, top0)
 
 
 def add_other_sheet(slide, left0: float, top0: float) -> None:
-    """Я первый, 6× Ты лучший!, памятка, Без тормозов — same card size."""
+    """Я первый, 6× Ты лучший!, Без тормозов — same card size."""
     cards: list[tuple] = [("ya", None)]
     for i in range(1, 7):
         cards.append(("ty", i))
-    cards.append(("memo", None))
     cards.append(("bez", None))
 
     occupied: set[tuple[int, int]] = set()
@@ -327,14 +319,19 @@ def add_other_sheet(slide, left0: float, top0: float) -> None:
         left = left0 + col * CARD_W_MM
         top = top0 + row * CARD_H_MM
         if kind == "ya":
-            add_text_card(slide, left, top, "Я первый!", bold=True, long_if_over=20)
+            add_text_card(
+                slide,
+                left,
+                top,
+                "Я первый!",
+                anchor=MSO_ANCHOR.MIDDLE,
+                bold=True,
+            )
         elif kind == "ty":
             assert player is not None
             add_ty_luchshiy_card(slide, left, top, player, PLAYER_COLORS[player - 1])
-        elif kind == "memo":
-            add_memo_card(slide, left, top, MEMO_TITLE, MEMO_BODY)
         elif kind == "bez":
-            add_memo_card(slide, left, top, BEZ_TITLE, BEZ_BODY)
+            add_bez_card(slide, left, top)
 
     add_cut_grid(slide, left0, top0, occupied)
 
@@ -375,5 +372,8 @@ if __name__ == "__main__":
         f"Cards on slide {CARD_W_MM:.3f}x{CARD_H_MM:.3f} mm "
         f"(design {DESIGN_CARD_W_MM}x{DESIGN_CARD_H_MM}, scale {SCALE:.4f})"
     )
-    print(f"Font: prefer {PREF_PT} pt, min {MIN_PT} pt; no card fills")
-    print("Slides: 1 faces, 2 backs (column-mirrored), 3 other + memos")
+    print(
+        f"Font: main {MAIN_PT} pt; memo/player label smaller; "
+        "faces bottom, backs top"
+    )
+    print("Slides: 1 faces, 2 backs (column-mirrored), 3 other + Без тормозов")
