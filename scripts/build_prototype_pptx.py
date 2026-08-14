@@ -52,48 +52,73 @@ PLAYER_LABEL_PT = 8.0
 
 FACES: list[str] = [
     "Предложи ингредиенты любовного зелья для",
-    "Произнеси заклинание усыпления для",
-    "Скажи кто самый вонючий из",
-    "Расскажи чем испугать всех",
-    "Посоветуй чем подкупать",
-    "Назови тайную слабость",
-    "Подбери прозвище для любого из",
+    "Произнеси заклинание превращения в*",
+    "Скажи кто самый вонючий из*",
+    "Расскажи чем испугать всех*",
+    "Посоветуй чем подкупать*",
+    "Назови тайную слабость*",
+    "Подбери прозвище для любого из*",
     "Объясни как быстро «уложить»",
-    "Придумай страшное проклятие для",
-    "Скажи чем эффективнее будить",
-    "Составь комплимент, который вгонит в краску",
+    "Придумай страшное проклятие для*",
+    "Скажи чем эффективнее будить*",
+    "Составь комплимент, который вгонит в краску*",
     "Назови причину, по которой стоит избегать",
     "Посоветуй чем задобрить наутро одного из",
-    "Придумай алиби для кого-то из",
+    "Какое преступление типично для",
     "Скажи чем эффективно очаровывать",
     "Опиши худшее свидание для",
     "Подскажи как отшить",
-    "Сочини смс «мы должны серьёзно поговорить» для",
-    "Расскажи чем заменить утренний кофе для",
-    "Придумай челлендж на слабо для",
+    "Сочини сообщение «мы должны серьёзно поговорить» для",
+    "Расскажи чем заменить утренний кофе для*",
+    "Придумай чем взять на слабо*",
+    "Чем оскорбить любого из",
+    "Без чего нельзя представить*",
+    "За что ненавидят",
+    "Для кого сняли кино про*",
+    "Что пригодится для пранка над любым из*",
+    "Какую пользу можно ожидать от*",
+    "Какой подлянки можно ожидать от*",
+    "Какое наказание ждёт в аду для",
+    "Любимая игра*",
+    "Какое лекарство от головной боли лучше всего подойдёт для*",
+    "Лучший подарок*",
 ]
 
 BACKS: list[str] = [
-    "бородатых мужиков",
-    "животных на ферме",
-    "героев тупых комедий",
+    "*бородатых мужиков",
+    "*животных на ферме",
+    "*героев тупых комедий",
     "конченных интровертов",
-    "здесь присутствующих",
-    "дровосеков",
-    "типичных героев мемов",
+    "*здесь присутствующих",
+    "*ухоженных дровосеков",
+    "*типичных героев мемов",
     "твоих бывших",
     "твоих коллег после корпоратива",
-    "соседей сверху",
-    "вечных опоздунов",
+    "*соседей сверху",
+    "*вечных опоздунов",
     "гламурных девиц",
     "жертв пластической хирургии",
-    "фанатов комиксов",
-    "любителей настолок",
-    "ручных питомцев",
-    "криптоинвестеров",
-    "самокатчиков",
-    "маменьких сынков",
-    "величайших злодеев в истории",
+    "*фанатов комиксов",
+    "*любителей настолок",
+    "*ручных питомцев",
+    "*криптоинвестеров",
+    "*самокатчиков",
+    "*маменькиных сынков",
+    "*величайших злодеев в истории",
+    "*бабок у подъезда",
+    "алкашей",
+    "чемпионов френдзоны",
+    "*собачников",
+    "*кошатниц",
+    "пузатых скуфов",
+    "милф",
+    "*душнил",
+    "вахтёров женской общаги",
+    "*качков",
+    "яжмамок",
+    "*нейросетей",
+    "*ботаников",
+    "*очкариков",
 ]
 
 PLAYER_COLORS: list[RGBColor] = [
@@ -283,11 +308,12 @@ def add_bez_card(slide, left_mm: float, top_mm: float) -> None:
         _add_run(p, line, MEMO_BODY_PT, bold=False)
 
 
-def add_face_sheet(slide, left0: float, top0: float) -> None:
-    assert len(FACES) == PER_SLIDE
-    for idx, text in enumerate(FACES):
+def add_face_sheet(slide, left0: float, top0: float, chunk: list[str]) -> None:
+    occupied: set[tuple[int, int]] = set()
+    for idx, text in enumerate(chunk):
         col = idx % COLS
         row = idx // COLS
+        occupied.add((row, col))
         add_text_card(
             slide,
             left0 + col * CARD_W_MM,
@@ -295,24 +321,32 @@ def add_face_sheet(slide, left0: float, top0: float) -> None:
             text,
             anchor=MSO_ANCHOR.BOTTOM,
         )
-    add_cut_grid(slide, left0, top0)
+    add_cut_grid(slide, left0, top0, occupied)
 
 
-def add_back_sheet(slide, left0: float, top0: float) -> None:
-    """Column-mirrored backs for wide-side duplex."""
-    assert len(BACKS) == PER_SLIDE
-    for row in range(ROWS):
-        for col in range(COLS):
-            face_col = COLS - 1 - col
+def add_back_sheet(slide, left0: float, top0: float, chunk: list[str]) -> None:
+    """Column-mirrored backs for wide-side duplex within this sheet's chunk."""
+    occupied: set[tuple[int, int]] = set()
+    n = len(chunk)
+    rows_used = (n + COLS - 1) // COLS
+    for row in range(rows_used):
+        row_count = min(COLS, n - row * COLS)
+        for col in range(row_count):
+            occupied.add((row, col))
+            face_col = row_count - 1 - col
             face_idx = row * COLS + face_col
             add_text_card(
                 slide,
                 left0 + col * CARD_W_MM,
                 top0 + row * CARD_H_MM,
-                BACKS[face_idx],
+                chunk[face_idx],
                 anchor=MSO_ANCHOR.TOP,
             )
-    add_cut_grid(slide, left0, top0)
+    add_cut_grid(slide, left0, top0, occupied)
+
+
+def _chunks(items: list[str], size: int) -> list[list[str]]:
+    return [items[i : i + size] for i in range(0, len(items), size)]
 
 
 def add_other_sheet(slide, left0: float, top0: float) -> None:
@@ -352,7 +386,6 @@ def _blank_slide(prs: Presentation):
 
 
 def build() -> Path:
-    assert len(FACES) == 20 and len(BACKS) == 20
     assert CARD_W_MM > CARD_H_MM
 
     prs = Presentation()
@@ -361,8 +394,20 @@ def build() -> Path:
 
     left0, top0 = MARGIN_X_MM, MARGIN_Y_MM
 
-    add_face_sheet(_blank_slide(prs), left0, top0)
-    add_back_sheet(_blank_slide(prs), left0, top0)
+    # Interleave face/back sheets for duplex: 1 face, 2 back, 3 face, 4 back...
+    face_chunks = _chunks(FACES, PER_SLIDE)
+    back_chunks = _chunks(BACKS, PER_SLIDE)
+    sheet_pairs = max(len(face_chunks), len(back_chunks))
+    for i in range(sheet_pairs):
+        if i < len(face_chunks):
+            add_face_sheet(_blank_slide(prs), left0, top0, face_chunks[i])
+        else:
+            _blank_slide(prs)
+        if i < len(back_chunks):
+            add_back_sheet(_blank_slide(prs), left0, top0, back_chunks[i])
+        else:
+            _blank_slide(prs)
+
     add_other_sheet(_blank_slide(prs), left0, top0)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -387,4 +432,7 @@ if __name__ == "__main__":
         f"Font: main {MAIN_PT} pt; memo/player label smaller; "
         "faces bottom, backs top; text on card shape"
     )
-    print("Slides: 1 faces, 2 backs (column-mirrored), 3 other + Без тормозов")
+    print(
+        f"Faces {len(FACES)}, backs {len(BACKS)}; "
+        "duplex face/back sheets then other + Без тормозов"
+    )
