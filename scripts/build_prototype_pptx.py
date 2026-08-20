@@ -322,24 +322,21 @@ def add_face_sheet(slide, left0: float, top0: float, chunk: list[str]) -> None:
 
 
 def add_back_sheet(slide, left0: float, top0: float, chunk: list[str]) -> None:
-    """Column-mirrored backs for wide-side duplex within this sheet's chunk."""
-    occupied: set[tuple[int, int]] = set()
+    """Column-mirrored backs for wide-side duplex; no cut lines on backs."""
     n = len(chunk)
     rows_used = (n + COLS - 1) // COLS
     for row in range(rows_used):
         row_count = min(COLS, n - row * COLS)
-        for col in range(row_count):
-            occupied.add((row, col))
-            face_col = row_count - 1 - col
+        for face_col in range(row_count):
+            back_col = COLS - 1 - face_col
             face_idx = row * COLS + face_col
             add_text_card(
                 slide,
-                left0 + col * CARD_W_MM,
+                left0 + back_col * CARD_W_MM,
                 top0 + row * CARD_H_MM,
                 chunk[face_idx],
                 anchor=MSO_ANCHOR.TOP,
             )
-    add_cut_grid(slide, left0, top0, occupied)
 
 
 def _chunks(items: list[str], size: int) -> list[list[str]]:
@@ -347,34 +344,9 @@ def _chunks(items: list[str], size: int) -> list[list[str]]:
 
 
 def add_other_sheet(slide, left0: float, top0: float) -> None:
-    """Я первый, 6× Ты лучший!, Без тормозов — same card size."""
-    cards: list[tuple] = [("ya", None)]
-    for i in range(1, 7):
-        cards.append(("ty", i))
-    cards.append(("bez", None))
-
-    occupied: set[tuple[int, int]] = set()
-    for idx, (kind, player) in enumerate(cards):
-        col = idx % COLS
-        row = idx // COLS
-        occupied.add((row, col))
-        left = left0 + col * CARD_W_MM
-        top = top0 + row * CARD_H_MM
-        if kind == "ya":
-            add_text_card(
-                slide,
-                left,
-                top,
-                "Я первый!",
-                anchor=MSO_ANCHOR.MIDDLE,
-                bold=True,
-            )
-        elif kind == "ty":
-            assert player is not None
-            add_ty_luchshiy_card(slide, left, top, player, PLAYER_COLORS[player - 1])
-        elif kind == "bez":
-            add_bez_card(slide, left, top)
-
+    """Без тормозов only (no «Я первый» / «Ты лучший!»). Same card size."""
+    occupied: set[tuple[int, int]] = {(0, 0)}
+    add_bez_card(slide, left0, top0)
     add_cut_grid(slide, left0, top0, occupied)
 
 
@@ -431,5 +403,6 @@ if __name__ == "__main__":
     )
     print(
         f"Faces {len(FACES)}, backs {len(BACKS)}; "
-        "duplex face/back sheets then other + Без тормозов"
+        "duplex face/back sheets then Без тормозов "
+        "(no «Я первый» / «Ты лучший!»)"
     )
