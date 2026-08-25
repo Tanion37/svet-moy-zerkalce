@@ -1,7 +1,7 @@
 """A4-portrait PnP for letter cards (Russian frequency deck).
 
 Design card 57×44.1 mm. Grid 3×6 = 18 per page; total tiles scaled to 72.
-Follows TanionAgentSetting/prototype-presentation.md (labels, duplex, word-fit).
+Empty backs ⇒ single-sided sheets only (prototype-presentation §11).
 """
 from __future__ import annotations
 
@@ -294,26 +294,8 @@ def add_face_sheet(slide, left0: float, top0: float, chunk: list[str]) -> None:
             letter,
         )
     add_cut_grid(slide, left0, top0)
-    add_sheet_label(slide, "Карты букв · ЛИЦО")
-
-
-def add_back_sheet(slide, left0: float, top0: float, chunk: list[str]) -> None:
-    """Empty joker backs, column-mirrored; no cut lines."""
-    assert len(chunk) == PER_SLIDE
-    for row in range(ROWS):
-        for face_col in range(COLS):
-            back_col = COLS - 1 - face_col
-            shape = slide.shapes.add_shape(
-                MSO_SHAPE.RECTANGLE,
-                Mm(left0 + back_col * CARD_W_MM),
-                Mm(top0 + row * CARD_H_MM),
-                Mm(CARD_W_MM),
-                Mm(CARD_H_MM),
-            )
-            shape.fill.background()
-            shape.line.fill.background()
-            _no_shadow(shape)
-    add_sheet_label(slide, "Карты букв · ОБОРОТ")
+    # Empty backs ⇒ single-sided (§11): no ЛИЦО/ОБОРОТ marker
+    add_sheet_label(slide, "Карты букв")
 
 
 def _chunks(items: list[str], size: int) -> list[list[str]]:
@@ -334,9 +316,9 @@ def build() -> Path:
     prs.slide_height = Mm(SLIDE_H_MM)
     left0, top0 = MARGIN_X_MM, MARGIN_Y_MM
 
+    # Empty joker backs ⇒ no back sheets (prototype-presentation §11)
     for chunk in _chunks(letters, PER_SLIDE):
         add_face_sheet(_blank_slide(prs), left0, top0, chunk)
-        add_back_sheet(_blank_slide(prs), left0, top0, chunk)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     out = OUT_DIR / "svet-moy-zerkalce-letters.pptx"
@@ -349,11 +331,12 @@ if __name__ == "__main__":
     from collections import Counter
 
     counts = Counter(letters)
+    n_sheets = TOTAL_LETTERS // PER_SLIDE
     print(f"Wrote {path}")
     print(f"Slide {SLIDE_W_MM:.2f}x{SLIDE_H_MM:.2f} mm (A4 portrait)")
     print(
         f"Grid {COLS}x{ROWS}={PER_SLIDE}; total {TOTAL_LETTERS} "
-        f"({TOTAL_LETTERS // PER_SLIDE} face/back pairs)"
+        f"({n_sheets} face-only sheets, no backs)"
     )
     print(
         f"Cards {CARD_W_MM:.3f}x{CARD_H_MM:.3f} mm "
