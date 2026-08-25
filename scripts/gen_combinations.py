@@ -31,18 +31,13 @@ backs = [
     "милф",
     "душнил",
     "нейросетей",
+    "очкариков",
 ]
-
-# Для печати 14 карт: 14-й оборот = повтор последнего
-PRINT_BACKS = backs + [backs[-1]]
 
 lines = [
     "# Все сочетания запросов",
     "",
     f"Лицевая + оборотная. Всего: {len(faces) * len(backs)} ({len(faces)} × {len(backs)}).",
-    "",
-    f"Уникальных оборотов: {len(backs)}. На печати 14-й карты запроса оборот "
-    f"«{backs[-1]}» повторяется (пулы лицевых выровнены до {len(faces)}).",
     "",
 ]
 n = 0
@@ -57,4 +52,4 @@ for i, f in enumerate(faces, 1):
 Path(__file__).resolve().parents[1].joinpath("request-combinations.md").write_text(
     "\n".join(lines) + "\n", encoding="utf-8"
 )
-print(f"faces={len(faces)} backs={len(backs)} combinations={n} print_backs={len(PRINT_BACKS)}")
+print(f"faces={len(faces)} backs={len(backs)} combinations={n}")

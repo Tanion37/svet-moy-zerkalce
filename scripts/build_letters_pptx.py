@@ -1,8 +1,7 @@
 """A4-portrait PnP for letter cards (Russian frequency deck).
 
-Design card 57×44.1 mm. Grid 3×6 = 18 per page; total tiles scaled to 72
-so every face/back sheet is full. Frequency weights from
-svet-moy-zerkalce-app/src/data/letters.ts (largest-remainder).
+Design card 57×44.1 mm. Grid 3×6 = 18 per page; total tiles scaled to 72.
+Follows TanionAgentSetting/prototype-presentation.md (labels, duplex, word-fit).
 """
 from __future__ import annotations
 
@@ -14,10 +13,14 @@ from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.util import Mm, Pt
 
+try:
+    from PIL import ImageFont
+except ImportError:  # pragma: no cover
+    ImageFont = None  # type: ignore
+
 ROOT = Path(__file__).resolve().parents[1]
 OUT_DIR = ROOT / "output"
 
-# Same relative frequencies as svet-moy-zerkalce-app/src/data/letters.ts
 FREQ_WEIGHTS: dict[str, int] = {
     "о": 1097,
     "е": 848,
@@ -58,17 +61,18 @@ DESIGN_CARD_W_MM = 57.0
 DESIGN_CARD_H_MM = 44.1
 COLS = 3
 ROWS = 6
-PER_SLIDE = COLS * ROWS  # 18
+PER_SLIDE = COLS * ROWS
 
-SLIDE_W_MM = 210.0  # A4 portrait
+SLIDE_W_MM = 210.0
 SLIDE_H_MM = 297.0
 PRINTER_MARGIN_MM = 5.0
+LABEL_BAND_MM = 6.0
 
 BORDER_EMU = 9525
 LINE_MM = BORDER_EMU / 36000.0
 SAFE_INSET_MM = PRINTER_MARGIN_MM + LINE_MM / 2
 USABLE_W_MM = SLIDE_W_MM - 2 * SAFE_INSET_MM
-USABLE_H_MM = SLIDE_H_MM - 2 * SAFE_INSET_MM
+USABLE_H_MM = SLIDE_H_MM - 2 * SAFE_INSET_MM - LABEL_BAND_MM
 
 DESIGN_GRID_W = COLS * DESIGN_CARD_W_MM
 DESIGN_GRID_H = ROWS * DESIGN_CARD_H_MM
@@ -78,18 +82,23 @@ CARD_H_MM = DESIGN_CARD_H_MM * SCALE
 CONTENT_W = COLS * CARD_W_MM
 CONTENT_H = ROWS * CARD_H_MM
 MARGIN_X_MM = (SLIDE_W_MM - CONTENT_W) / 2
-MARGIN_Y_MM = (SLIDE_H_MM - CONTENT_H) / 2
+MARGIN_Y_MM = SAFE_INSET_MM + LABEL_BAND_MM + (
+    (SLIDE_H_MM - SAFE_INSET_MM - LABEL_BAND_MM - SAFE_INSET_MM - CONTENT_H) / 2
+)
 
 BORDER_COLOR = RGBColor(0xC0, 0xC0, 0xC0)
 INK = RGBColor(0x1A, 0x1A, 0x1A)
+LABEL_COLOR = RGBColor(0x55, 0x55, 0x55)
 LETTER_PT = 28.0
+MIN_PT = 8.0
+LABEL_PT = 9.0
+PAD_X_MM = 1.5
+PAD_Y_MM = 1.0
 
-# Fill complete pages: next multiple of PER_SLIDE at or above app default 70
 TOTAL_LETTERS = ((70 + PER_SLIDE - 1) // PER_SLIDE) * PER_SLIDE  # 72
 
 
 def build_weighted_deck(weights: dict[str, int], total: int) -> list[str]:
-    """Frequency deck; guarantee ≥1 of each letter, then largest-remainder."""
     letters = sorted(weights.keys(), key=lambda ch: (ch.replace("ё", "е\uffff"), ch))
     if total < len(letters):
         raise ValueError(f"total {total} < alphabet {len(letters)}")
@@ -126,13 +135,70 @@ def _no_shadow(shape) -> None:
         pass
 
 
-def _add_run(paragraph, text: str, size: float, *, bold: bool = True) -> None:
+def _add_run(
+    paragraph,
+    text: str,
+    size: float,
+    *,
+    bold: bool = True,
+    color: RGBColor = INK,
+) -> None:
     run = paragraph.add_run()
     run.text = text
     run.font.name = "Arial"
     run.font.size = Pt(size)
     run.font.bold = bold
-    run.font.color.rgb = INK
+    run.font.color.rgb = color
+
+
+def _word_width_pt(word: str, size_pt: float, *, bold: bool) -> float:
+    if ImageFont is not None:
+        try:
+            name = "arialbd.ttf" if bold else "arial.ttf"
+            font = ImageFont.truetype(name, int(round(size_pt)))
+            return float(font.getlength(word))
+        except OSError:
+            pass
+    return len(word) * size_pt * (0.72 if bold else 0.58)
+
+
+def fit_font_for_words(
+    text: str,
+    max_width_mm: float,
+    max_pt: float,
+    *,
+    bold: bool = True,
+    min_pt: float = MIN_PT,
+) -> float:
+    words = [w for w in text.replace("\n", " ").split(" ") if w]
+    if not words:
+        return max_pt
+    max_width_pt = max_width_mm * 72.0 / 25.4
+    size = max_pt
+    while size > min_pt + 1e-6:
+        widest = max(_word_width_pt(w, size, bold=bold) for w in words)
+        if widest <= max_width_pt:
+            return round(size, 1)
+        size -= 0.5
+    return min_pt
+
+
+def add_sheet_label(slide, text: str) -> None:
+    box = slide.shapes.add_textbox(
+        Mm(SAFE_INSET_MM),
+        Mm(SAFE_INSET_MM),
+        Mm(SLIDE_W_MM - 2 * SAFE_INSET_MM),
+        Mm(LABEL_BAND_MM - 0.5),
+    )
+    tf = box.text_frame
+    tf.word_wrap = False
+    tf.margin_left = Mm(0)
+    tf.margin_right = Mm(0)
+    tf.margin_top = Mm(0)
+    tf.margin_bottom = Mm(0)
+    p = tf.paragraphs[0]
+    p.alignment = PP_ALIGN.LEFT
+    _add_run(p, text, LABEL_PT, bold=False, color=LABEL_COLOR)
 
 
 def _cut_hline(slide, left_mm: float, top_mm: float, width_mm: float) -> None:
@@ -190,6 +256,8 @@ def add_cut_grid(slide, left0: float, top0: float) -> None:
 
 
 def add_letter_card(slide, left_mm: float, top_mm: float, letter: str) -> None:
+    text_w = CARD_W_MM - 2 * PAD_X_MM * SCALE
+    size = fit_font_for_words(letter.upper(), text_w, LETTER_PT, bold=True)
     shape = slide.shapes.add_shape(
         MSO_SHAPE.RECTANGLE,
         Mm(left_mm),
@@ -203,15 +271,15 @@ def add_letter_card(slide, left_mm: float, top_mm: float, letter: str) -> None:
     tf = shape.text_frame
     tf.word_wrap = False
     tf.vertical_anchor = MSO_ANCHOR.MIDDLE
-    tf.margin_left = Mm(1.5 * SCALE)
-    tf.margin_right = Mm(1.5 * SCALE)
-    tf.margin_top = Mm(1.0 * SCALE)
-    tf.margin_bottom = Mm(1.0 * SCALE)
+    tf.margin_left = Mm(PAD_X_MM * SCALE)
+    tf.margin_right = Mm(PAD_X_MM * SCALE)
+    tf.margin_top = Mm(PAD_Y_MM * SCALE)
+    tf.margin_bottom = Mm(PAD_Y_MM * SCALE)
     p0 = tf.paragraphs[0]
     p0.alignment = PP_ALIGN.CENTER
     p0.space_before = Pt(0)
     p0.space_after = Pt(0)
-    _add_run(p0, letter.upper(), LETTER_PT, bold=True)
+    _add_run(p0, letter.upper(), size, bold=True)
 
 
 def add_face_sheet(slide, left0: float, top0: float, chunk: list[str]) -> None:
@@ -226,15 +294,15 @@ def add_face_sheet(slide, left0: float, top0: float, chunk: list[str]) -> None:
             letter,
         )
     add_cut_grid(slide, left0, top0)
+    add_sheet_label(slide, "Карты букв · ЛИЦО")
 
 
 def add_back_sheet(slide, left0: float, top0: float, chunk: list[str]) -> None:
-    """Column-mirrored empty backs (joker side); no cut lines."""
+    """Empty joker backs, column-mirrored; no cut lines."""
     assert len(chunk) == PER_SLIDE
     for row in range(ROWS):
         for face_col in range(COLS):
             back_col = COLS - 1 - face_col
-            # Empty card footprint: invisible shape keeps duplex alignment
             shape = slide.shapes.add_shape(
                 MSO_SHAPE.RECTANGLE,
                 Mm(left0 + back_col * CARD_W_MM),
@@ -245,6 +313,7 @@ def add_back_sheet(slide, left0: float, top0: float, chunk: list[str]) -> None:
             shape.fill.background()
             shape.line.fill.background()
             _no_shadow(shape)
+    add_sheet_label(slide, "Карты букв · ОБОРОТ")
 
 
 def _chunks(items: list[str], size: int) -> list[list[str]]:
@@ -284,7 +353,7 @@ if __name__ == "__main__":
     print(f"Slide {SLIDE_W_MM:.2f}x{SLIDE_H_MM:.2f} mm (A4 portrait)")
     print(
         f"Grid {COLS}x{ROWS}={PER_SLIDE}; total {TOTAL_LETTERS} "
-        f"({TOTAL_LETTERS // PER_SLIDE} face sheets)"
+        f"({TOTAL_LETTERS // PER_SLIDE} face/back pairs)"
     )
     print(
         f"Cards {CARD_W_MM:.3f}x{CARD_H_MM:.3f} mm "

@@ -13,7 +13,7 @@
 - [rules.md](rules.md) — правила
 - [game-content.md](game-content.md) — существа, части запросов
 - [request-combinations.md](request-combinations.md) — все сочетания лицевой × оборотной
-- [output/svet-moy-zerkalce-cards.pptx](output/svet-moy-zerkalce-cards.pptx) — PnP: запросы + «Ты восхитителен» (1 лист + оборот)
+- [output/svet-moy-zerkalce-cards.pptx](output/svet-moy-zerkalce-cards.pptx) — PnP: запросы (лицо/оборот) + «Ты восхитителен» (отдельный лист без оборота)
 - [output/svet-moy-zerkalce-letters.pptx](output/svet-moy-zerkalce-letters.pptx) — PnP: карты букв (A4 книжный, частотность)
 - [output/svet-moy-zerkalce-rules.pptx](output/svet-moy-zerkalce-rules.pptx) — правила с примерами (стиль МХ)
 - [archive/](archive/) — отклонённый контент и «Без тормозов» (**пробовали, не зашло**)
