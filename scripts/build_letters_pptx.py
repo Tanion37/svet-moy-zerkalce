@@ -88,10 +88,10 @@ MARGIN_Y_MM = SAFE_INSET_MM + LABEL_BAND_MM + (
 
 BORDER_COLOR = RGBColor(0xC0, 0xC0, 0xC0)
 INK = RGBColor(0x1A, 0x1A, 0x1A)
-LABEL_COLOR = RGBColor(0x55, 0x55, 0x55)
+LABEL_COLOR = RGBColor(0x1A, 0x1A, 0x1A)
 LETTER_PT = 28.0
 MIN_PT = 8.0
-LABEL_PT = 9.0
+LABEL_PT = 11.0
 PAD_X_MM = 1.5
 PAD_Y_MM = 1.0
 
@@ -129,10 +129,22 @@ def build_weighted_deck(weights: dict[str, int], total: int) -> list[str]:
 
 
 def _no_shadow(shape) -> None:
+    """Drop theme effectRef (shadow) — inherit=False alone is not enough."""
     try:
         shape.shadow.inherit = False
     except Exception:
         pass
+    el = shape._element
+    style = el.find(
+        "{http://schemas.openxmlformats.org/presentationml/2006/main}style"
+    )
+    if style is not None:
+        el.remove(style)
+    sp_pr = getattr(el, "spPr", None)
+    if sp_pr is not None:
+        for child in list(sp_pr):
+            if child.tag.endswith("}effectLst"):
+                sp_pr.remove(child)
 
 
 def _add_run(
@@ -190,6 +202,7 @@ def add_sheet_label(slide, text: str) -> None:
         Mm(SLIDE_W_MM - 2 * SAFE_INSET_MM),
         Mm(LABEL_BAND_MM - 0.5),
     )
+    _no_shadow(box)
     tf = box.text_frame
     tf.word_wrap = False
     tf.margin_left = Mm(0)
@@ -198,7 +211,7 @@ def add_sheet_label(slide, text: str) -> None:
     tf.margin_bottom = Mm(0)
     p = tf.paragraphs[0]
     p.alignment = PP_ALIGN.LEFT
-    _add_run(p, text, LABEL_PT, bold=False, color=LABEL_COLOR)
+    _add_run(p, text, LABEL_PT, bold=True, color=LABEL_COLOR)
 
 
 def _cut_hline(slide, left_mm: float, top_mm: float, width_mm: float) -> None:
