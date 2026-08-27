@@ -1,5 +1,9 @@
 ﻿# Changelog
 
+## 2026-08-27
+
+- Инструкция по подготовке PnP: `output/pnp-prep-instructions.docx`; буквы можно взять из другой игры.
+
 ## 2026-08-25
 
 - Инструкция по подготовке PnP: `output/pnp-prep-instructions.md` (текст под Docs – `output/pnp-prep-instructions.txt`).
