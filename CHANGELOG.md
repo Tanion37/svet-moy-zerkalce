@@ -2,6 +2,9 @@
 
 ## 2026-08-27
 
+- Рубашки запросов вынесены в `output/svet-moy-zerkalce-card-backs.pptx` (требование КОРНИ 15); лица и «Ты восхитителен» остаются в `svet-moy-zerkalce-cards.pptx`.
+- Заготовки полей заявки КОРНИ 15: `output/korni-15-application-draft.md`.
+- Инструкция PnP обновлена под отдельный файл оборотов.
 - Инструкция по подготовке PnP: `output/pnp-prep-instructions.docx`; буквы можно взять из другой игры.
 
 ## 2026-08-25

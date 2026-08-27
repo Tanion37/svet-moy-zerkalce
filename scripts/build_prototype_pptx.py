@@ -1,7 +1,9 @@
-"""A4-landscape PnP: request cards (duplex) + «Ты восхитителен» (single-sided).
+"""A4-landscape PnP: request faces + «Ты восхитителен»; request backs in a separate file.
 
+КОРНИ 15: рубашки компонентов — отдельным файлом.
 Follows TanionAgentSetting/prototype-presentation.md:
-- word-fit font shrink; sheet labels; no back page for single-sided.
+- word-fit font shrink; sheet labels; no back page for single-sided;
+- back sheet still column-mirrored for duplex with the face sheet.
 """
 from __future__ import annotations
 
@@ -382,30 +384,40 @@ def _blank_slide(prs: Presentation):
     return prs.slides.add_slide(prs.slide_layouts[6])
 
 
-def build() -> Path:
-    assert CARD_W_MM > CARD_H_MM
-    assert len(FACES) == len(BACKS) == 14
-
+def _new_prs() -> Presentation:
     prs = Presentation()
     prs.slide_width = Mm(SLIDE_W_MM)
     prs.slide_height = Mm(SLIDE_H_MM)
+    return prs
+
+
+def build() -> tuple[Path, Path]:
+    assert CARD_W_MM > CARD_H_MM
+    assert len(FACES) == len(BACKS) == 14
 
     left0, top0 = MARGIN_X_MM, MARGIN_Y_MM
-    add_request_face_sheet(_blank_slide(prs), left0, top0)
-    add_request_back_sheet(_blank_slide(prs), left0, top0)
-    add_vote_sheet(_blank_slide(prs), left0, top0)
-
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    out = OUT_DIR / "svet-moy-zerkalce-cards.pptx"
-    prs.save(str(out))
-    return out
+
+    faces = _new_prs()
+    add_request_face_sheet(_blank_slide(faces), left0, top0)
+    add_vote_sheet(_blank_slide(faces), left0, top0)
+    faces_out = OUT_DIR / "svet-moy-zerkalce-cards.pptx"
+    faces.save(str(faces_out))
+
+    backs = _new_prs()
+    add_request_back_sheet(_blank_slide(backs), left0, top0)
+    backs_out = OUT_DIR / "svet-moy-zerkalce-card-backs.pptx"
+    backs.save(str(backs_out))
+
+    return faces_out, backs_out
 
 
 if __name__ == "__main__":
-    path = build()
+    faces_path, backs_path = build()
     sample = "здесь присутствующих"
     fitted = fit_font_for_words(sample, _text_width_mm(), MAIN_PT)
-    print(f"Wrote {path}")
+    print(f"Wrote {faces_path}")
+    print(f"Wrote {backs_path}")
     print(f"Slide {SLIDE_W_MM:.2f}x{SLIDE_H_MM:.2f} mm (exact A4 landscape)")
     print(
         f"Margins >= {PRINTER_MARGIN_MM} mm "
@@ -418,5 +430,5 @@ if __name__ == "__main__":
     print(f"Word-fit sample «{sample}»: {fitted} pt (max {MAIN_PT})")
     print(
         f"Faces/backs {len(FACES)}; votes {len(PLAYER_COLORS)} "
-        "(votes: face-only sheet, no back)"
+        "(votes: face-only sheet in cards file; backs in separate file)"
     )
