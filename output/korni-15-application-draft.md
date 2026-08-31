@@ -72,13 +72,14 @@
 
 На диск положить:
 
-- `svet-moy-zerkalce-rules.pptx` — правила
-- `svet-moy-zerkalce-cards.pptx` — лица запросов и карты «Ты восхитителен»
-- `svet-moy-zerkalce-card-backs.pptx` — обороты запросов
-- `svet-moy-zerkalce-letters.pptx` — карты букв
+- `svet-moy-zerkalce-rules.pdf` — правила
+- `svet-moy-zerkalce-cards.pdf` — лица запросов
+- `svet-moy-zerkalce-card-backs.pdf` — обороты запросов
+- `svet-moy-zerkalce-votes.pdf` — карты «Ты восхитителен»
+- `svet-moy-zerkalce-letters.pdf` — карты букв
 - `pnp-prep-instructions.docx` — инструкция по печати и резке
 
-Положение принимает PDF или DOC; PPTX на диске лучше дополнительно сохранить как PDF.
+Положение принимает PDF или DOC.
 
 Другие файлообменники форма не рассматривает.
 
