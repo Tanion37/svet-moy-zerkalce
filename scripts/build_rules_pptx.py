@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from PIL import Image
 from pptx import Presentation
 from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE
@@ -28,6 +29,11 @@ LINE = RGBColor(0x90, 0x90, 0x90)
 ACCENT = RGBColor(0x2E, 0x5A, 0x88)
 LIGHT = RGBColor(0xEE, 0xF2, 0xF7)
 WHITE = RGBColor(0xFF, 0xFF, 0xFF)
+CONTACTS = (
+    "t.me/tanion, vk.ru/tanion, yury@nxt.ru, +79213189331 "
+    "(не стесняйтесь звонить / писать при возникновении вопросов)"
+)
+RULES_VERSION = "3.7"
 
 
 def _no_shadow(shape) -> None:
@@ -41,12 +47,13 @@ def _blank(prs: Presentation):
     return prs.slides.add_slide(prs.slide_layouts[6])
 
 
-def _run(p, text, size, *, bold=False, color=INK):
+def _run(p, text, size, *, bold=False, italic=False, color=INK):
     r = p.add_run()
     r.text = text
     r.font.name = "Arial"
     r.font.size = Pt(size)
     r.font.bold = bold
+    r.font.italic = italic
     r.font.color.rgb = color
 
 
@@ -63,10 +70,10 @@ def _textbox(slide, left, top, width, height, *, anchor=MSO_ANCHOR.TOP):
 
 
 def add_title(slide, text: str, top: float) -> float:
-    tf = _textbox(slide, MARGIN, top, CONTENT_W, 11)
+    tf = _textbox(slide, MARGIN, top, CONTENT_W, 14)
     p = tf.paragraphs[0]
     _run(p, text, 18, bold=True)
-    return top + 12
+    return top + 15
 
 
 def add_heading(slide, text: str, top: float) -> float:
@@ -76,7 +83,7 @@ def add_heading(slide, text: str, top: float) -> float:
     return top + 8
 
 
-def add_body(slide, lines: list[str], top: float, *, size: float = 11) -> float:
+def add_body(slide, lines: list[str], top: float, *, size: float = 11, italic: bool = False) -> float:
     h = max(7.0, len(lines) * (size * 0.42 + 2.0) + 2)
     tf = _textbox(slide, MARGIN, top, CONTENT_W, h)
     first = True
@@ -85,7 +92,7 @@ def add_body(slide, lines: list[str], top: float, *, size: float = 11) -> float:
         first = False
         p.space_before = Pt(0)
         p.space_after = Pt(2)
-        _run(p, line, size)
+        _run(p, line, size, italic=italic)
     return top + h + 1
 
 
@@ -124,10 +131,14 @@ class Book:
         self.need(14)
         self.y = add_title(self.slide, text, self.y)
 
-    def body(self, lines: list[str], *, size: float = 11) -> None:
+    def body(self, lines: list[str], *, size: float = 11, italic: bool = False) -> None:
         h = max(7.0, len(lines) * (size * 0.42 + 2.0) + 3)
         self.need(h)
-        self.y = add_body(self.slide, lines, self.y, size=size)
+        self.y = add_body(self.slide, lines, self.y, size=size, italic=italic)
+
+    def _img_size(self, name: str, width: float) -> tuple[float, float]:
+        im = Image.open(ART / name)
+        return width, width * im.height / im.width
 
     def picture_row(
         self,
@@ -138,29 +149,151 @@ class Book:
         caption_h: float = 8.0,
     ) -> None:
         n = len(items)
+        sizes = [self._img_size(name, card_w) for name, _ in items]
+        max_h = max(h for _, h in sizes)
         total = n * card_w + (n - 1) * gap
         left0 = MARGIN + max(0.0, (CONTENT_W - total) / 2)
-        # aspect 57 x 44.1
-        card_h = card_w * (44.1 / 57.0)
-        block = card_h + caption_h + 2
+        block = max_h + caption_h + 2
         self.need(block)
-        for i, (name, caption) in enumerate(items):
+        for i, ((name, caption), (_w, card_h)) in enumerate(zip(items, sizes)):
             left = left0 + i * (card_w + gap)
-            add_picture(self.slide, name, left, self.y, card_w)
-            tf = _textbox(self.slide, left, self.y + card_h + 0.5, card_w, caption_h)
+            top = self.y + (max_h - card_h)
+            add_picture(self.slide, name, left, top, card_w)
+            tf = _textbox(self.slide, left, self.y + max_h + 0.5, card_w, caption_h)
             p = tf.paragraphs[0]
+            p.alignment = PP_ALIGN.CENTER
+            _run(p, caption, 8, color=MUTED)
+        self.y += block
+
+    def picture_request_stack(
+        self,
+        face_name: str,
+        back_name: str,
+        face_cap: str,
+        back_cap: str,
+        *,
+        card_w: float = 70.0,
+        gap: float = 3.0,
+        caption_h: float = 8.0,
+    ) -> None:
+        """Face above back – the request-card layout used everywhere in the booklet."""
+        _w, card_h = self._img_size(face_name, card_w)
+        block = 2 * (card_h + caption_h) + gap + 2
+        self.need(block)
+        left = MARGIN + (CONTENT_W - card_w) / 2
+        y = self.y
+        add_picture(self.slide, face_name, left, y, card_w)
+        tf = _textbox(self.slide, left, y + card_h + 0.4, card_w, caption_h)
+        p = tf.paragraphs[0]
+        p.alignment = PP_ALIGN.CENTER
+        _run(p, face_cap, 8, color=MUTED)
+        y += card_h + caption_h + gap
+        add_picture(self.slide, back_name, left, y, card_w)
+        tf = _textbox(self.slide, left, y + card_h + 0.4, card_w, caption_h)
+        p = tf.paragraphs[0]
+        p.alignment = PP_ALIGN.CENTER
+        _run(p, back_cap, 8, color=MUTED)
+        self.y += block
+
+    def component_row(self) -> None:
+        """Комплектация: ряд картинок, подписи только под ними."""
+        items = [
+            (
+                "card-request-duplex.png",
+                "карты запросов – 14 шт. (лицевая сторона и рубашка)",
+            ),
+            (
+                "card-letter-duplex.png",
+                "карты букв – 72 шт. (рубашка – джокер)",
+            ),
+            (
+                "card-vote-stack.png",
+                "карты «Ты восхитителен» – 6 шт. (по 1 каждого цвета)",
+            ),
+        ]
+        gap = 4.0
+        caption_h = 14.0
+        n = len(items)
+        aspects = []
+        for name, _ in items:
+            im = Image.open(ART / name)
+            aspects.append(im.height / im.width)
+        # Fit row into CONTENT_W; cap height so the row stays compact.
+        max_h = 42.0
+        widths = [min(max_h / a, 70.0) for a in aspects]
+        total = sum(widths) + (n - 1) * gap
+        if total > CONTENT_W:
+            scale = CONTENT_W / total
+            widths = [w * scale for w in widths]
+        heights = [w * a for w, a in zip(widths, aspects)]
+        row_h = max(heights)
+        block = row_h + caption_h + 2
+        self.need(block)
+        x = MARGIN + (CONTENT_W - (sum(widths) + (n - 1) * gap)) / 2
+        y0 = self.y
+        for (name, caption), cw, ch in zip(items, widths, heights):
+            top = y0 + (row_h - ch)
+            add_picture(self.slide, name, x, top, cw)
+            tf = _textbox(self.slide, x, y0 + row_h + 0.4, cw, caption_h)
+            p = tf.paragraphs[0]
+            p.alignment = PP_ALIGN.CENTER
+            _run(p, caption, 8, color=MUTED)
+            x += cw + gap
+        self.y += block
+
+    def side_by_side(
+        self,
+        lines: list[str],
+        image_name: str,
+        *,
+        image_on_right: bool = True,
+        img_w: float = 58.0,
+        size: float = 11,
+        italic: bool = False,
+        caption: str | None = None,
+        caption_h: float = 8.0,
+    ) -> None:
+        """Narrow illustration: text on one half, image on the opposite half."""
+        _w, img_h = self._img_size(image_name, img_w)
+        cap = caption_h if caption else 0.0
+        gap = 5.0
+        text_w = CONTENT_W - img_w - gap
+        text_h = max(7.0, len(lines) * (size * 0.42 + 2.2) + 2)
+        block = max(text_h, img_h + cap) + 2
+        self.need(block)
+        if image_on_right:
+            text_left = MARGIN
+            img_left = MARGIN + text_w + gap
+        else:
+            img_left = MARGIN
+            text_left = MARGIN + img_w + gap
+        tf = _textbox(self.slide, text_left, self.y, text_w, max(text_h, img_h))
+        first = True
+        for line in lines:
+            p = tf.paragraphs[0] if first else tf.add_paragraph()
+            first = False
+            p.space_before = Pt(0)
+            p.space_after = Pt(2)
+            _run(p, line, size, italic=italic)
+        img_top = self.y
+        add_picture(self.slide, image_name, img_left, img_top, img_w)
+        if caption:
+            ctf = _textbox(
+                self.slide, img_left, img_top + img_h + 0.3, img_w, caption_h
+            )
+            p = ctf.paragraphs[0]
             p.alignment = PP_ALIGN.CENTER
             _run(p, caption, 8, color=MUTED)
         self.y += block
 
     def setup_image(self, max_h: float | None = None) -> None:
         name = "setup-table.png"
-        # native ~180x115 mm at 200 dpi; fit width
+        native_w, native_h = 200.0, 130.0
         w = CONTENT_W
-        h = w * (115.0 / 180.0)
+        h = w * (native_h / native_w)
         if max_h is not None and h > max_h:
             h = max_h
-            w = h * (180.0 / 115.0)
+            w = h * (native_w / native_h)
         self.need(min(h, self.leftover() if self.leftover() > MAX_GAP else h))
         if self.leftover() < h:
             scale = self.leftover() / h
@@ -196,60 +329,36 @@ class Book:
 
 
 def build_book(book: Book) -> None:
-    book.title("Свет мой зеркальце")
+    book.title("Свет мой зеркальце. Правила игры")
     book.body(
         [
-            "ПРАВИЛА ИГРЫ",
             "3–6 игроков  ·  от 16 лет  ·  около 30 минут",
-            "Контакты автора: yury.yamshchikov@gmail.com",
-            "Версия правил 0.6",
+            f"Версия правил {RULES_VERSION}",
         ],
         size=12,
     )
-    book.heading("Об игре")
     book.body(
         [
-            "Вы – гремлины службы поддержки волшебного сервиса «Зеркальце».",
-            "Клиенты задают через зеркало странные вопросы, а вы на лету",
-            "собираете ответы из карт букв, которые берёте из общей кучи.",
-            "Чем смешнее и точнее реакция зала – тем выше шанс забрать",
-            "карту запроса себе. Побеждает тот, у кого к концу колоды",
-            "больше всего таких карт.",
-            "Содержание: взрослый и чёрный юмор (в т.ч. намёки на отношения,",
-            "алкоголь и табак). Политика и религия не используются.",
-        ]
-    )
-    book.heading("Состав игры")
-    book.body(
-        [
-            "• 14 карт запросов (двусторонние: начало + окончание фразы)",
-            "• 72 карты букв (частотность русского языка; рубашка = джокер)",
-            "• 6 карт «Ты восхитителен» (по 1 каждого цвета)",
-            "• правила, которые вы читаете",
-        ]
-    )
-    book.picture_row(
-        [
-            ("card-request-face.png", "запрос · лицо"),
-            ("card-request-back.png", "запрос · оборот"),
-            ("card-letter.png", "буква"),
-            ("card-letter-joker.png", "джокер"),
-            ("card-vote.png", "«Ты восхитителен»"),
+            "Вы – гремлины службы поддержки волшебного сервиса «Свет мой зеркальце скажи». Клиенты из почти современного мира задают через зеркало странные вопросы, а вы на лету собираете ответы из карт букв, которые берёте из общей кучи в центре стола. Чем смешнее и точнее реакция зала – тем выше шанс забрать карту запроса себе. Побеждает тот, у кого к концу колоды запросов больше всего таких карт.",
         ],
-        card_w=34.0,
-        gap=3.0,
-        caption_h=10.0,
+        size=11,
+        italic=True,
+    )
+    book.heading("Комплектация")
+    book.component_row()
+    book.body(
+        [
+            "Элементы, которых нет в PnP, но которые нужны для партии: поверхность стола, достаточная чтобы раскидать карты букв и кидать карты «Ты восхитителен» к игрокам.",
+        ],
+        size=10,
     )
 
     book.heading("Подготовка к игре")
     book.body(
         [
-            "1. Перемешайте колоду запросов и положите её рубашками вверх.",
-            "   Верхняя карта показывает вторую половину будущего запроса.",
-            "2. Каждый игрок выбирает цвет и берёт карту «Ты восхитителен»",
-            "   своего цвета. Лишние уберите в коробку.",
-            "3. Раскиньте все карты букв лицом вверх в случайном порядке",
-            "   в центре стола. Руки игроков в начале раунда пустые.",
+            "1. Перемешайте колоду карт запросов и положите её рубашками вверх. Верхняя карта колоды запросов показывает окончание будущего запроса на своей рубашке.",
+            "2. Каждый игрок выбирает цвет и берёт карту «Ты восхитителен» своего цвета. Лишние карты «Ты восхитителен» уберите в коробку.",
+            "3. Все карты букв раскиньте в случайном порядке лицом вверх в центре стола. Руки игроков в начале раунда пустые.",
         ]
     )
     book.setup_image()
@@ -257,41 +366,29 @@ def build_book(book: Book) -> None:
     book.heading("Цель игры")
     book.body(
         [
-            "Набирайте карты запросов как победные очки. Когда колода",
-            "запросов больше не позволяет начать раунд, побеждает игрок",
-            "с наибольшим числом таких карт.",
+            "Набирайте карты запросов как победные очки. Когда колода запросов больше не позволяет начать раунд, побеждает игрок с наибольшим числом таких карт.",
         ]
     )
     book.heading("Как устроена карта запроса")
-    book.body(
+    book.side_by_side(
         [
+            "У каждой карты запроса две стороны.",
             "1. Лицевая сторона – начало фразы-запроса.",
             "2. Рубашка – окончание фразы-запроса.",
-            "Рамка зеркала на всех картах одинаковая: лицевая одной карты",
-            "и рубашка следующей сверху в колоде складываются в целый запрос.",
-        ]
-    )
-    book.picture_row(
-        [
-            ("card-request-face.png", "«Расскажи чем испугать всех»"),
-            ("card-request-back.png", "«соседей сверху»"),
+            "Рамка зеркала на всех картах запросов одинаковая: при любой перетасовке лицевая сторона одной карты запроса и рубашка следующей сверху карты в колоде всегда складываются в одно изображение зеркала с целым текстом запроса.",
+            "Читаете вслух, например: «Расскажи чем испугать всех соседей сверху».",
         ],
-        card_w=70.0,
-        gap=8.0,
-        caption_h=10.0,
-    )
-    book.body(
-        [
-            "Читаете вслух: «Расскажи чем испугать всех соседей сверху».",
-        ],
-        size=11,
+        "card-request-pair.png",
+        image_on_right=True,
+        img_w=52.0,
+        size=10,
+        caption="лицевая сторона сверху, рубашка снизу",
     )
 
     book.heading("Ход игры")
     book.body(
         [
-            "Игра идёт раундами. Все действия в раунде, кроме возврата карт",
-            "букв в центр, выполняются одновременно, если не сказано иное.",
+            "Игра идёт раундами. Все действия в раунде выполняются одновременно.",
         ]
     )
     book.step_row(
@@ -304,87 +401,74 @@ def build_book(book: Book) -> None:
     )
     book.body(
         [
-            "1. Снимите верхнюю карту, переверните на лицевую рядом с колодой.",
-            "   Прочитайте: лицевая + рубашка новой верхней карты.",
-            "   Если пары нет – конец игры.",
-            "2. Игроки одновременно берут буквы из центра одной рукой по 1 карте.",
-            "   Второй рукой можно держать взятое; копаться в куче нельзя.",
-            "   Берите, пока хватит на ответ. Лишнее остаётся в центре.",
-            "   Рубашка буквы вверх = джокер (замену вслух не называете).",
-            "3. Все одновременно кидают «Ты восхитителен» к другому игроку.",
-            "   Победитель раунда забирает лицевую карту запроса.",
-            "4. Все карты букв возвращаются в центр, перемешиваются",
-            "   и снова раскидываются лицом вверх.",
+            "1. Снимите верхнюю карту колоды запросов, переверните её на лицевую сторону и положите рядом с колодой так, чтобы вместе с новой верхней картой колоды запросов (с её рубашкой) получилось общее зеркало.",
+            "Прочитайте вслух текст на лицевой стороне открытой карты запроса и на рубашке верхней карты запроса.",
+            "Если карты кончились, наступает конец игры.",
+            "2. Игроки одновременно берут карты букв из центра стола одной рукой по одной карте. Второй рукой можно держать взятое, но не копаться в куче.",
+            "Берите карты букв, пока вам хватит на ответ. Лишние карты букв остаются в центре стола.",
+            "Любую карту буквы можно сыграть рубашкой вверх как джокер (любая буква). Замену вслух не называйте.",
+            "3. Голосование – см. ниже.",
+            "4. Все карты букв возвращаются в центр стола, перемешиваются и снова раскидываются лицом вверх.",
         ],
         size=10,
     )
 
     book.heading("Составление ответа")
-    book.body(
+    book.side_by_side(
         [
-            "Ответ – слово или фраза на усмотрение игрока. Допустимы",
-            "несуществующие и неполные слова. Несыгранные взятые буквы",
-            "остаются у игрока до конца раунда.",
-        ]
-    )
-    book.picture_row(
-        [
-            ("card-letter.png", "буква лицом"),
-            ("card-letter-joker.png", "рубашка = джокер"),
+            "Ответ – слово или фраза на усмотрение игрока в пределах взятых карт букв. Допустимы несуществующие и неполные слова.",
+            "Несыгранные взятые карты букв остаются у игрока до конца раунда.",
+            "Игрок выкладывает свой ответ перед собой на стол, когда готов.",
         ],
-        card_w=48.0,
-        gap=10.0,
+        "card-letter-duplex.png",
+        image_on_right=False,
+        img_w=62.0,
+        size=10,
+        caption="карты букв: лицо и рубашка-джокер",
     )
 
-    book.heading("Голосование «Ты восхитителен»")
     book.body(
         [
-            "Карта должна быть в руке. Все кидают одновременно к другому",
-            "игроку: себе оставлять нельзя. Неясно, к кому упала – решает",
-            "владелец карты словами. Опоздал кинуть: его карта не учитывается,",
-            "а каждый другой игрок получает по 2 голоса.",
-            "Ничья: все лидеры побеждают. Один берёт лицевую карту, остальные",
-            "по часовой стрелке – по карте с верха колоды запросов.",
+            "Пример: запрос «Чем соблазнить милф». Настя выложила «БЕЗ ТРУСОВ» (позже получит 3 голоса), Артём – «В ПОДЪЕЗДЕ» (1 голос), Кирилл – «МАМИН ДРУГ» (0 голосов).",
         ],
-        size=10,
+        size=11,
+        italic=True,
     )
-    book.heading("Пример")
-    book.body(
+
+    book.heading("Голосование")
+    book.side_by_side(
         [
-            "Запрос: «Чем соблазнить милф». Настя собрала ТИШИНА (3 голоса),",
-            "Артём – ШОКОЛАД (1), Кирилл – КОТЫ (0). Победитель – Настя:",
-            "она берёт лицевую карту запроса. Карты «Ты восхитителен»",
-            "возвращаются владельцам, все буквы – в центр стола.",
+            "Каждый игрок берёт в руку карту голосования. Когда все определились с выбором, то по команде одновременно кидают на понравившееся слово (если очень хочется – можно в составившего его игрока). Если неясно, к кому упала – кинувший поясняет.",
+            "Себе карту голосования оставлять нельзя: кидайте только к чужому ответу.",
+            "Если игрок не успел кинуть карту голосования вместе с остальными, его карта не учитывается, а каждый другой игрок получает по 2 голоса.",
+            "Победитель раунда – игрок, перед которым оказалось больше всего карт голосования. Он берёт карту запроса, лежащую лицевой стороной вверх, и кладёт её перед собой как победное очко.",
+            "Ничья по голосам. Если лидеров несколько, все они объявляются победителями раунда. Один из них берёт лицевую карту запроса, остальные по очереди (по часовой стрелке от обладателя лицевой карты запроса или по договорённости) берут по одной карте с верха колоды запросов как победные очки. Часть будущих запросов при этом выбывает – так и задумано.",
+            "После определения победителя или победителей верните карты «Ты восхитителен» владельцам в руку – они снова понадобятся в следующем раунде.",
         ],
+        "card-vote-stack.png",
+        image_on_right=True,
+        img_w=48.0,
         size=10,
-    )
-    book.picture_row(
-        [
-            ("card-vote.png", "голос (кидают к другому)"),
-        ],
-        card_w=50.0,
+        caption="карты голосования «Ты восхитителен»",
     )
 
     book.heading("Конец игры")
     book.body(
         [
-            "Игра заканчивается, когда колода запросов больше не позволяет",
-            "начать раунд (закончилась или осталась одна карта без пары).",
-            "1. Каждый считает карты запросов перед собой.",
+            "Игра заканчивается, когда колода запросов больше не позволяет начать раунд: карты кончились или осталась одна карта запроса без пары для зеркала.",
+            "1. Каждый игрок считает карты запросов, лежащие перед ним как победные очки.",
             "2. Побеждает игрок с наибольшим числом таких карт.",
-            "При ничьей – совместная победа.",
+            "При ничьей объявите совместную победу.",
         ]
     )
     book.heading("Частые вопросы")
     book.body(
         [
-            "? Можно ли кинуть «Ты восхитителен» себе?  Нет. Только другому.",
-            "? Карта упала между двумя – чей голос?  Решает владелец карты.",
-            "? Копаться в разложенных буквах?  Нет. Только брать сверху/с края,",
-            "  одной рукой по 1 карте. Вторая рука – только держать взятое.",
-            "? Когда переставать брать буквы?  Когда хватит на ваш ответ.",
-            "? Сколько джокеров можно сыграть?  Сколько угодно. Зал реже",
-            "  голосует за нечитаемый ответ.",
+            "? Можно ли кинуть карту голосования себе?  Нет. Только к чужому ответу.",
+            "? Карта голосования упала между двумя игроками – чей это голос?  Кинувший поясняет.",
+            "? Можно ли копаться в разложенных картах букв?  Нет. Берите только сверху или с края кучи, одной рукой по одной карте. Второй рукой можно держать взятое, но не копаться в куче.",
+            "? Когда переставать брать карты букв?  Когда вам хватит карт букв на ваш ответ.",
+            "? Сколько джокеров можно сыграть?  Сколько угодно. Зал реже голосует за нечитаемый ответ.",
         ],
         size=10,
     )
@@ -393,26 +477,32 @@ def build_book(book: Book) -> None:
         [
             "Автор: Юрий Ямщиков",
             "Редакция / развитие: [плейсхолдер]",
-            "Версия правил 0.6",
-            "yury.yamshchikov@gmail.com",
+            f"Версия правил {RULES_VERSION}",
         ],
         size=10,
     )
     book.heading("Памятка раунда")
     book.body(
         [
-            "1. Открыть зеркало-запрос",
-            "2. Взять буквы из центра (одна рука, по 1) и собрать ответ",
-            "3. Кинуть «Ты восхитителен»",
-            "4. Все буквы – в центр, перемешать, раскидать лицом вверх",
+            "1. Открыть карту запроса: снять верхнюю карту колоды запросов, перевернуть на лицевую сторону, прочитать текст на лицевой стороне открытой карты запроса и на рубашке верхней карты запроса.",
+            "2. Взять карты букв из центра стола (одна рука, по одной карте) и собрать ответ.",
+            "3. Кинуть карту голосования на понравившееся слово.",
+            "4. Все карты букв вернуть в центр стола, перемешать и раскидать лицом вверх.",
         ]
     )
     book.body(
         [
-            "После раунда все карты букв снова лежат в центре лицом вверх.",
+            "После раунда все карты букв снова лежат в центре стола лицом вверх.",
         ]
     )
     book.setup_image()
+    book.heading("Контакты")
+    book.body(
+        [
+            f"Контакты автора: {CONTACTS}",
+        ],
+        size=10,
+    )
 
 
 def build() -> Path:
