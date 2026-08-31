@@ -220,6 +220,40 @@ def duplex_pair(left: Image.Image, right: Image.Image) -> Image.Image:
     return img
 
 
+def letter_answer_row() -> Image.Image:
+    """Blank joker + О П А in one row (illustration for «Составление ответа»)."""
+    cards = [_blank(LET_W, LET_H), letter_card("О"), letter_card("П"), letter_card("А")]
+    gap = int(round(3 * MM))
+    w = len(cards) * LET_W + (len(cards) - 1) * gap
+    img = Image.new("RGBA", (w, LET_H), WHITE)
+    x = 0
+    for card in cards:
+        img.alpha_composite(card.convert("RGBA"), (x, 0))
+        x += LET_W + gap
+    return img
+
+
+def _rotated_aabb(
+    cx: float, cy: float, w: float, h: float, angle_deg: float, pad: float = 0.0
+) -> tuple[float, float, float, float]:
+    import math
+
+    a = math.radians(angle_deg)
+    cos_a, sin_a = math.cos(a), math.sin(a)
+    hw, hh = w / 2, h / 2
+    xs, ys = [], []
+    for x, y in ((-hw, -hh), (hw, -hh), (hw, hh), (-hw, hh)):
+        xs.append(cx + x * cos_a - y * sin_a)
+        ys.append(cy + x * sin_a + y * cos_a)
+    return (min(xs) - pad, min(ys) - pad, max(xs) + pad, max(ys) + pad)
+
+
+def _aabb_overlap(
+    a: tuple[float, float, float, float], b: tuple[float, float, float, float]
+) -> bool:
+    return not (a[2] < b[0] or a[0] > b[2] or a[3] < b[1] or a[1] > b[3])
+
+
 def _paste_rotated(scene: Image.Image, card: Image.Image, cx: int, cy: int, angle: float) -> None:
     rot = card.rotate(angle, expand=True, resample=Image.Resampling.BICUBIC)
     x = int(cx - rot.width / 2)
@@ -244,19 +278,39 @@ def setup_table() -> Image.Image:
         _paste_rotated(scene, small_back, deck_x + i * 4, deck_y - i * 3, 0)
     _paste_rotated(scene, small_face, deck_x, deck_y - req_size[1] - 6, 0)
 
+    vote_scale = 0.34
+    votes = [
+        (vote_card(VOTE_RED, 1), 0.09, 0.11, -8),
+        (vote_card(VOTE_BLUE, 2), 0.91, 0.11, 9),
+        (vote_card(VOTE_GREEN, 3), 0.09, 0.90, 7),
+        (vote_card(VOTE_ORANGE, 4), 0.91, 0.90, -11),
+    ]
+    vote_pad = int(round(6 * MM))
+    vote_boxes = []
+    for card, px, py, ang in votes:
+        small = card.resize(
+            (int(VOTE_W * vote_scale), int(VOTE_H * vote_scale)),
+            Image.Resampling.LANCZOS,
+        )
+        cx, cy = int(w * px), int(h * py)
+        _paste_rotated(scene, small, cx, cy, ang)
+        vote_boxes.append(
+            _rotated_aabb(cx, cy, small.width, small.height, ang, pad=vote_pad)
+        )
+
     positions = [
-        (0.20, 0.52, -18),
-        (0.32, 0.66, 12),
-        (0.44, 0.58, -8),
-        (0.58, 0.70, 22),
-        (0.70, 0.54, -14),
-        (0.26, 0.82, 6),
-        (0.40, 0.86, -22),
-        (0.54, 0.88, 10),
-        (0.68, 0.80, -6),
-        (0.78, 0.66, 16),
-        (0.16, 0.68, 8),
-        (0.84, 0.82, -12),
+        (0.42, 0.52, -18),
+        (0.48, 0.58, 12),
+        (0.54, 0.52, -8),
+        (0.60, 0.58, 22),
+        (0.51, 0.64, -14),
+        (0.45, 0.64, 6),
+        (0.57, 0.64, -22),
+        (0.50, 0.58, 10),
+        (0.55, 0.55, -6),
+        (0.47, 0.55, 16),
+        (0.43, 0.59, 8),
+        (0.59, 0.61, -12),
     ]
     let_scale = 0.38
     small_letters = [
@@ -267,21 +321,15 @@ def setup_table() -> Image.Image:
     ]
     for (px, py, ang), card in zip(positions, small_letters):
         jitter = rng.randint(-8, 8)
-        _paste_rotated(scene, card, int(w * px) + jitter, int(h * py), ang)
-
-    vote_scale = 0.34
-    votes = [
-        (vote_card(VOTE_RED, 1), 0.12, 0.18, -8),
-        (vote_card(VOTE_BLUE, 2), 0.88, 0.18, 9),
-        (vote_card(VOTE_GREEN, 3), 0.12, 0.90, 7),
-        (vote_card(VOTE_ORANGE, 4), 0.88, 0.90, -11),
-    ]
-    for card, px, py, ang in votes:
-        small = card.resize(
-            (int(VOTE_W * vote_scale), int(VOTE_H * vote_scale)),
-            Image.Resampling.LANCZOS,
-        )
-        _paste_rotated(scene, small, int(w * px), int(h * py), ang)
+        cx = int(w * px) + jitter
+        cy = int(h * py)
+        box = _rotated_aabb(cx, cy, card.width, card.height, ang, pad=vote_pad)
+        if any(_aabb_overlap(box, vb) for vb in vote_boxes):
+            cx, cy = int(w * 0.50), int(h * 0.58)
+            box = _rotated_aabb(cx, cy, card.width, card.height, ang, pad=vote_pad)
+            if any(_aabb_overlap(box, vb) for vb in vote_boxes):
+                continue
+        _paste_rotated(scene, card, cx, cy, ang)
 
     rgb = Image.new("RGB", scene.size, (255, 255, 255))
     rgb.paste(scene, mask=scene.split()[3])
@@ -312,6 +360,7 @@ def build() -> Path:
         duplex_pair(card_stack(letter, 4), card_stack(joker, 4)),
         OUT / "card-letter-duplex.png",
     )
+    save_rgba(letter_answer_row(), OUT / "card-letter-answer.png")
     vote = vote_card(VOTE_RED, 1)
     save_rgba(vote, OUT / "card-vote.png")
     save_rgba(card_stack(vote, 4), OUT / "card-vote-stack.png")
