@@ -2,6 +2,7 @@
 
 ## 2026-09-07
 
+- Отдельный файл букв с удвоенными гласными: гласные красные, согласные синие. `output/svet-moy-zerkalce-letters-colored.pptx`; сборка `scripts/build_letters_colored_pptx.py`. Канон 72 чёрных карт не менялся.
 - Отдельный расширенный прототип запросов: канон 14 + 10 карт из архива (24×24). Файлы `output/svet-moy-zerkalce-cards-plus.pptx` / `card-backs-plus`; сборка `scripts/build_plus_requests_pptx.py`.
 
 ## 2026-08-31

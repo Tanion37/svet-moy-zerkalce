@@ -1,10 +1,11 @@
 """A4-portrait PnP for letter cards (Russian frequency deck).
 
-Design card 57×44.1 mm. Grid 3×6 = 18 per page; total tiles scaled to 72.
+Design card 44.1×57 mm (portrait). Grid 4×5 = 20 per page; 72 cards.
 Empty backs ⇒ single-sided sheets only (prototype-presentation §11).
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 from pptx import Presentation
@@ -57,10 +58,10 @@ FREQ_WEIGHTS: dict[str, int] = {
     "ъ": 2,
 }
 
-DESIGN_CARD_W_MM = 57.0
-DESIGN_CARD_H_MM = 44.1
-COLS = 3
-ROWS = 6
+DESIGN_CARD_W_MM = 44.1
+DESIGN_CARD_H_MM = 57.0
+COLS = 4
+ROWS = 5
 PER_SLIDE = COLS * ROWS
 
 SLIDE_W_MM = 210.0
@@ -89,13 +90,15 @@ MARGIN_Y_MM = SAFE_INSET_MM + LABEL_BAND_MM + (
 BORDER_COLOR = RGBColor(0xC0, 0xC0, 0xC0)
 INK = RGBColor(0x1A, 0x1A, 0x1A)
 LABEL_COLOR = RGBColor(0x1A, 0x1A, 0x1A)
-LETTER_PT = 28.0
+LETTER_PT_CAP = 200.0
 MIN_PT = 8.0
 LABEL_PT = 11.0
-PAD_X_MM = 1.5
-PAD_Y_MM = 1.0
+PAD_X_MM = 2.0
+PAD_Y_MM = 2.0
+# PPT vs PIL metrics: keep a small inset so glyphs stay inside the cut line.
+FIT_SAFETY = 0.96
 
-TOTAL_LETTERS = ((70 + PER_SLIDE - 1) // PER_SLIDE) * PER_SLIDE  # 72
+TOTAL_LETTERS = 72
 
 
 def build_weighted_deck(weights: dict[str, int], total: int) -> list[str]:
@@ -163,36 +166,65 @@ def _add_run(
     run.font.color.rgb = color
 
 
-def _word_width_pt(word: str, size_pt: float, *, bold: bool) -> float:
-    if ImageFont is not None:
+_FONT_DIR = Path(r"C:\Windows\Fonts")
+
+
+def _load_font(size_pt: float, *, bold: bool):
+    if ImageFont is None:
+        return None
+    name = "arialbd.ttf" if bold else "arial.ttf"
+    for candidate in (_FONT_DIR / name, name):
         try:
-            name = "arialbd.ttf" if bold else "arial.ttf"
-            font = ImageFont.truetype(name, int(round(size_pt)))
-            return float(font.getlength(word))
+            return ImageFont.truetype(str(candidate), int(round(size_pt)))
         except OSError:
-            pass
-    return len(word) * size_pt * (0.72 if bold else 0.58)
+            continue
+    return None
 
 
-def fit_font_for_words(
-    text: str,
+def _glyph_box_pt(ch: str, size_pt: float, *, bold: bool) -> tuple[float, float, float]:
+    """Ink width, ink height, and em height in pt."""
+    font = _load_font(size_pt, bold=bold)
+    if font is not None:
+        x0, y0, x1, y1 = font.getbbox(ch)
+        ascent, descent = font.getmetrics()
+        return float(x1 - x0), float(y1 - y0), float(ascent + descent)
+    # Conservative Cyrillic fallback if Arial is missing.
+    return size_pt * 1.05, size_pt * 0.95, size_pt * 1.15
+
+
+def fit_font_for_glyph(
+    ch: str,
     max_width_mm: float,
+    max_height_mm: float,
     max_pt: float,
     *,
     bold: bool = True,
     min_pt: float = MIN_PT,
 ) -> float:
-    words = [w for w in text.replace("\n", " ").split(" ") if w]
-    if not words:
-        return max_pt
-    max_width_pt = max_width_mm * 72.0 / 25.4
-    size = max_pt
+    max_width_pt = max_width_mm * 72.0 / 25.4 * FIT_SAFETY
+    max_height_pt = max_height_mm * 72.0 / 25.4 * FIT_SAFETY
+    size = min(max_pt, max_height_pt)
     while size > min_pt + 1e-6:
-        widest = max(_word_width_pt(w, size, bold=bold) for w in words)
-        if widest <= max_width_pt:
+        ink_w, ink_h, em_h = _glyph_box_pt(ch, size, bold=bold)
+        if ink_w <= max_width_pt and ink_h <= max_height_pt and em_h <= max_height_pt:
             return round(size, 1)
         size -= 0.5
     return min_pt
+
+
+def _text_box_mm() -> tuple[float, float]:
+    return (
+        CARD_W_MM - 2 * PAD_X_MM * SCALE,
+        CARD_H_MM - 2 * PAD_Y_MM * SCALE,
+    )
+
+
+def uniform_letter_pt() -> float:
+    text_w, text_h = _text_box_mm()
+    return min(
+        fit_font_for_glyph(ch.upper(), text_w, text_h, LETTER_PT_CAP, bold=True)
+        for ch in FREQ_WEIGHTS
+    )
 
 
 def add_sheet_label(slide, text: str) -> None:
@@ -242,8 +274,11 @@ def _cut_vline(slide, left_mm: float, top_mm: float, height_mm: float) -> None:
     _no_shadow(shape)
 
 
-def add_cut_grid(slide, left0: float, top0: float) -> None:
-    occupied = {(r, c) for r in range(ROWS) for c in range(COLS)}
+def add_cut_grid(
+    slide, left0: float, top0: float, occupied: set[tuple[int, int]] | None = None
+) -> None:
+    if occupied is None:
+        occupied = {(r, c) for r in range(ROWS) for c in range(COLS)}
     for row_edge in range(ROWS + 1):
         for col in range(COLS):
             above = (row_edge - 1, col) in occupied if row_edge > 0 else False
@@ -268,9 +303,15 @@ def add_cut_grid(slide, left0: float, top0: float) -> None:
                 )
 
 
-def add_letter_card(slide, left_mm: float, top_mm: float, letter: str) -> None:
-    text_w = CARD_W_MM - 2 * PAD_X_MM * SCALE
-    size = fit_font_for_words(letter.upper(), text_w, LETTER_PT, bold=True)
+def add_letter_card(
+    slide,
+    left_mm: float,
+    top_mm: float,
+    letter: str,
+    size: float,
+    *,
+    color: RGBColor = INK,
+) -> None:
     shape = slide.shapes.add_shape(
         MSO_SHAPE.RECTANGLE,
         Mm(left_mm),
@@ -292,23 +333,36 @@ def add_letter_card(slide, left_mm: float, top_mm: float, letter: str) -> None:
     p0.alignment = PP_ALIGN.CENTER
     p0.space_before = Pt(0)
     p0.space_after = Pt(0)
-    _add_run(p0, letter.upper(), size, bold=True)
+    p0.line_spacing = 1.0
+    _add_run(p0, letter.upper(), size, bold=True, color=color)
 
 
-def add_face_sheet(slide, left0: float, top0: float, chunk: list[str]) -> None:
-    assert len(chunk) == PER_SLIDE
+def add_face_sheet(
+    slide,
+    left0: float,
+    top0: float,
+    chunk: list[str],
+    size: float,
+    *,
+    color_for: Callable[[str], RGBColor] | None = None,
+    sheet_label: str = "Карты букв",
+) -> None:
+    occupied: set[tuple[int, int]] = set()
     for idx, letter in enumerate(chunk):
         col = idx % COLS
         row = idx // COLS
+        occupied.add((row, col))
         add_letter_card(
             slide,
             left0 + col * CARD_W_MM,
             top0 + row * CARD_H_MM,
             letter,
+            size,
+            color=color_for(letter) if color_for else INK,
         )
-    add_cut_grid(slide, left0, top0)
+    add_cut_grid(slide, left0, top0, occupied)
     # Empty backs ⇒ single-sided (§11): no ЛИЦО/ОБОРОТ marker
-    add_sheet_label(slide, "Карты букв")
+    add_sheet_label(slide, sheet_label)
 
 
 def _chunks(items: list[str], size: int) -> list[list[str]]:
@@ -319,10 +373,18 @@ def _blank_slide(prs: Presentation):
     return prs.slides.add_slide(prs.slide_layouts[6])
 
 
-def build() -> Path:
-    assert TOTAL_LETTERS % PER_SLIDE == 0
-    letters = build_weighted_deck(FREQ_WEIGHTS, TOTAL_LETTERS)
-    assert len(letters) == TOTAL_LETTERS
+def build(
+    *,
+    letters: list[str] | None = None,
+    out_name: str = "svet-moy-zerkalce-letters.pptx",
+    sheet_label: str = "Карты букв",
+    color_for: Callable[[str], RGBColor] | None = None,
+) -> tuple[Path, list[str], float]:
+    assert CARD_H_MM > CARD_W_MM
+    if letters is None:
+        letters = build_weighted_deck(FREQ_WEIGHTS, TOTAL_LETTERS)
+        assert len(letters) == TOTAL_LETTERS
+    size = uniform_letter_pt()
 
     prs = Presentation()
     prs.slide_width = Mm(SLIDE_W_MM)
@@ -331,28 +393,38 @@ def build() -> Path:
 
     # Empty joker backs ⇒ no back sheets (prototype-presentation §11)
     for chunk in _chunks(letters, PER_SLIDE):
-        add_face_sheet(_blank_slide(prs), left0, top0, chunk)
+        add_face_sheet(
+            _blank_slide(prs),
+            left0,
+            top0,
+            chunk,
+            size,
+            color_for=color_for,
+            sheet_label=sheet_label,
+        )
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    out = OUT_DIR / "svet-moy-zerkalce-letters.pptx"
+    out = OUT_DIR / out_name
     prs.save(str(out))
-    return out, letters
+    return out, letters, size
 
 
 if __name__ == "__main__":
-    path, letters = build()
+    path, letters, size = build()
     from collections import Counter
 
     counts = Counter(letters)
-    n_sheets = TOTAL_LETTERS // PER_SLIDE
+    n_full, n_last = divmod(TOTAL_LETTERS, PER_SLIDE)
+    n_sheets = n_full + (1 if n_last else 0)
     print(f"Wrote {path}")
     print(f"Slide {SLIDE_W_MM:.2f}x{SLIDE_H_MM:.2f} mm (A4 portrait)")
     print(
         f"Grid {COLS}x{ROWS}={PER_SLIDE}; total {TOTAL_LETTERS} "
-        f"({n_sheets} face-only sheets, no backs)"
+        f"({n_sheets} face-only sheets, last has {n_last or PER_SLIDE}, no backs)"
     )
     print(
         f"Cards {CARD_W_MM:.3f}x{CARD_H_MM:.3f} mm "
         f"(design {DESIGN_CARD_W_MM}x{DESIGN_CARD_H_MM}, scale {SCALE:.4f})"
     )
+    print(f"Letter size {size} pt (uniform, limited by widest glyph)")
     print("Counts:", dict(sorted(counts.items(), key=lambda x: (-x[1], x[0]))))

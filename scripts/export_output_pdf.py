@@ -22,6 +22,10 @@ PLUS_PPTX_STEMS = (
     "svet-moy-zerkalce-card-backs-plus",
 )
 
+COLORED_LETTERS_STEMS = (
+    "svet-moy-zerkalce-letters-colored",
+)
+
 SOFFICE_CANDIDATES = (
     Path(r"C:\Program Files\LibreOffice\program\soffice.exe"),
     Path(r"C:\Program Files (x86)\LibreOffice\program\soffice.exe"),
@@ -78,6 +82,8 @@ if __name__ == "__main__":
     stems = PPTX_STEMS
     if "--plus" in sys.argv:
         stems = PLUS_PPTX_STEMS
+    elif "--colored-letters" in sys.argv:
+        stems = COLORED_LETTERS_STEMS
     try:
         paths = build(stems)
     except Exception as exc:

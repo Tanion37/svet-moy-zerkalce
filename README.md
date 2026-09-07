@@ -20,6 +20,7 @@
 - [output/svet-moy-zerkalce-votes.pptx](output/svet-moy-zerkalce-votes.pptx) / [PDF](output/svet-moy-zerkalce-votes.pdf) — PnP: карты «Ты восхитителен» (отдельный файл, без оборота)
 - [output/korni-15-application-draft.md](output/korni-15-application-draft.md) — заготовки полей заявки КОРНИ 15
 - [output/svet-moy-zerkalce-letters.pptx](output/svet-moy-zerkalce-letters.pptx) / [PDF](output/svet-moy-zerkalce-letters.pdf) — PnP: карты букв (A4 книжный, частотность)
+- [output/svet-moy-zerkalce-letters-colored.pptx](output/svet-moy-zerkalce-letters-colored.pptx) / [PDF](output/svet-moy-zerkalce-letters-colored.pdf) — PnP: карты букв с удвоенными гласными (красные гласные, синие согласные)
 - [output/svet-moy-zerkalce-rules.pptx](output/svet-moy-zerkalce-rules.pptx) / [PDF](output/svet-moy-zerkalce-rules.pdf) — правила с примерами (стиль МХ, вид PnP-карт)
 - [output/pnp-prep-instructions.docx](output/pnp-prep-instructions.docx) — инструкция по печати и резке
 - [archive/](archive/) — отклонённый контент и «Без тормозов» (**пробовали, не зашло**)
