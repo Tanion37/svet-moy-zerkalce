@@ -464,7 +464,16 @@ def _chunks(items: list[str], size: int) -> list[list[str]]:
     return [items[i : i + size] for i in range(0, len(items), size)]
 
 
-def add_request_face_sheet(slide, left0: float, top0: float, chunk: list[str]) -> None:
+def add_request_face_sheet(
+    slide,
+    left0: float,
+    top0: float,
+    chunk: list[str],
+    *,
+    wrap_lines: dict[str, int] | None = None,
+) -> None:
+    if wrap_lines is None:
+        wrap_lines = FACE_WRAP_LINES
     margins = _frame_margins(face=True)
     occupied: set[tuple[int, int]] = set()
     for idx, text in enumerate(chunk):
@@ -473,7 +482,7 @@ def add_request_face_sheet(slide, left0: float, top0: float, chunk: list[str]) -
         card_margins = margins
         card_text = text
         size: float | None = None
-        n_lines = FACE_WRAP_LINES.get(text)
+        n_lines = wrap_lines.get(text)
         if n_lines:
             extra = extra_side_for_n_lines(
                 text, _text_width_mm(margins), n_lines, MAIN_PT
@@ -542,31 +551,56 @@ def _new_prs() -> Presentation:
     return prs
 
 
-def build() -> tuple[Path, Path, Path]:
+def build(
+    faces: list[str] | None = None,
+    backs: list[str] | None = None,
+    *,
+    wrap_lines: dict[str, int] | None = None,
+    faces_name: str = "svet-moy-zerkalce-cards.pptx",
+    backs_name: str = "svet-moy-zerkalce-card-backs.pptx",
+    include_votes: bool = True,
+) -> tuple[Path, Path, Path | None]:
+    if faces is None:
+        faces = FACES
+    if backs is None:
+        backs = BACKS
+    if wrap_lines is None:
+        wrap_lines = FACE_WRAP_LINES
     assert CARD_W_MM > CARD_H_MM
-    assert len(FACES) == len(BACKS) == 14
+    if len(faces) != len(backs):
+        raise ValueError(f"faces/backs mismatch: {len(faces)} vs {len(backs)}")
     if not FACE_FRAME.is_file() or not BACK_FRAME.is_file():
         raise FileNotFoundError(f"Missing frame art: {FACE_FRAME} / {BACK_FRAME}")
 
     left0, top0 = MARGIN_X_MM, MARGIN_Y_MM
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    faces = _new_prs()
-    backs = _new_prs()
-    for face_chunk, back_chunk in zip(_chunks(FACES, PER_SLIDE), _chunks(BACKS, PER_SLIDE)):
-        add_request_face_sheet(_blank_slide(faces), left0, top0, face_chunk)
-        add_request_back_sheet(_blank_slide(backs), left0, top0, back_chunk)
+    face_prs = _new_prs()
+    back_prs = _new_prs()
+    for face_chunk, back_chunk in zip(
+        _chunks(faces, PER_SLIDE), _chunks(backs, PER_SLIDE)
+    ):
+        add_request_face_sheet(
+            _blank_slide(face_prs),
+            left0,
+            top0,
+            face_chunk,
+            wrap_lines=wrap_lines,
+        )
+        add_request_back_sheet(_blank_slide(back_prs), left0, top0, back_chunk)
 
-    faces_out = OUT_DIR / "svet-moy-zerkalce-cards.pptx"
-    faces.save(str(faces_out))
+    faces_out = OUT_DIR / faces_name
+    face_prs.save(str(faces_out))
 
-    backs_out = OUT_DIR / "svet-moy-zerkalce-card-backs.pptx"
-    backs.save(str(backs_out))
+    backs_out = OUT_DIR / backs_name
+    back_prs.save(str(backs_out))
 
-    votes = _new_prs()
-    add_vote_sheet(_blank_slide(votes), left0, top0)
-    votes_out = OUT_DIR / "svet-moy-zerkalce-votes.pptx"
-    votes.save(str(votes_out))
+    votes_out: Path | None = None
+    if include_votes:
+        votes = _new_prs()
+        add_vote_sheet(_blank_slide(votes), left0, top0)
+        votes_out = OUT_DIR / "svet-moy-zerkalce-votes.pptx"
+        votes.save(str(votes_out))
 
     return faces_out, backs_out, votes_out
 

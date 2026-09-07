@@ -15,6 +15,8 @@
 - [request-combinations.md](request-combinations.md) — все сочетания лицевой × оборотной
 - [output/svet-moy-zerkalce-cards.pptx](output/svet-moy-zerkalce-cards.pptx) / [PDF](output/svet-moy-zerkalce-cards.pdf) — PnP: лица запросов (88×63 мм)
 - [output/svet-moy-zerkalce-card-backs.pptx](output/svet-moy-zerkalce-card-backs.pptx) / [PDF](output/svet-moy-zerkalce-card-backs.pdf) — PnP: обороты запросов (дуплекс к лицам)
+- [output/svet-moy-zerkalce-cards-plus.pptx](output/svet-moy-zerkalce-cards-plus.pptx) / [PDF](output/svet-moy-zerkalce-cards-plus.pdf) — расширенный прототип: лица запросов (14+10)
+- [output/svet-moy-zerkalce-card-backs-plus.pptx](output/svet-moy-zerkalce-card-backs-plus.pptx) / [PDF](output/svet-moy-zerkalce-card-backs-plus.pdf) — расширенный прототип: обороты запросов
 - [output/svet-moy-zerkalce-votes.pptx](output/svet-moy-zerkalce-votes.pptx) / [PDF](output/svet-moy-zerkalce-votes.pdf) — PnP: карты «Ты восхитителен» (отдельный файл, без оборота)
 - [output/korni-15-application-draft.md](output/korni-15-application-draft.md) — заготовки полей заявки КОРНИ 15
 - [output/svet-moy-zerkalce-letters.pptx](output/svet-moy-zerkalce-letters.pptx) / [PDF](output/svet-moy-zerkalce-letters.pdf) — PnP: карты букв (A4 книжный, частотность)

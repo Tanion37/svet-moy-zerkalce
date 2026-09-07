@@ -17,6 +17,11 @@ PPTX_STEMS = (
     "svet-moy-zerkalce-letters",
 )
 
+PLUS_PPTX_STEMS = (
+    "svet-moy-zerkalce-cards-plus",
+    "svet-moy-zerkalce-card-backs-plus",
+)
+
 SOFFICE_CANDIDATES = (
     Path(r"C:\Program Files\LibreOffice\program\soffice.exe"),
     Path(r"C:\Program Files (x86)\LibreOffice\program\soffice.exe"),
@@ -62,14 +67,19 @@ def export(sources: list[Path]) -> list[Path]:
     return pdfs
 
 
-def build() -> list[Path]:
-    sources = [OUT / f"{stem}.pptx" for stem in PPTX_STEMS]
+def build(stems: tuple[str, ...] | None = None) -> list[Path]:
+    if stems is None:
+        stems = PPTX_STEMS
+    sources = [OUT / f"{stem}.pptx" for stem in stems]
     return export(sources)
 
 
 if __name__ == "__main__":
+    stems = PPTX_STEMS
+    if "--plus" in sys.argv:
+        stems = PLUS_PPTX_STEMS
     try:
-        paths = build()
+        paths = build(stems)
     except Exception as exc:
         print(exc, file=sys.stderr)
         sys.exit(1)

@@ -4,5 +4,5 @@
 
 | Файл | Что |
 |---|---|
-| [rejected-request-parts.md](rejected-request-parts.md) | Лицевые и оборотные части запросов, не вошедшие в канон |
+| [rejected-request-parts.md](rejected-request-parts.md) | Лицевые и оборотные части запросов, не вошедшие в канон 14×14; пункты 1–10 — в расширенном прототипе (+10) |
 | [bez-tormozov.md](bez-tormozov.md) | Режим «Без тормозов» и карта «Я первый» |
