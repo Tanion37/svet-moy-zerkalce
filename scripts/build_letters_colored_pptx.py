@@ -1,4 +1,4 @@
-"""Separate letter-card variant: doubled vowels; vowels red, consonants blue.
+"""Separate letter-card variant: doubled vowels; vowels red, consonants green.
 
 Canon 72-card black deck stays in svet-moy-zerkalce-letters.pptx.
 """
@@ -24,7 +24,7 @@ from build_letters_pptx import (
 VOWELS = frozenset("аеёиоуыэюя")
 CONSONANTS = frozenset("бвгджзйклмнпрстфхцчшщ")
 VOWEL_COLOR = RGBColor(0xFF, 0x00, 0x00)
-CONSONANT_COLOR = RGBColor(0x00, 0x00, 0xFF)
+CONSONANT_COLOR = RGBColor(0x00, 0x80, 0x00)
 OUT_NAME = "svet-moy-zerkalce-letters-colored.pptx"
 
 
