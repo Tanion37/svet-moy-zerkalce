@@ -1,5 +1,9 @@
 ﻿# Changelog
 
+## 2026-09-11
+
+- Режим «Для опытных»: отдельный документ только с отличиями от основы (рука из 10 карт букв, ответ только из руки, рассказ перед голосованием, передача использованных карт букв влево и добор до 7). `rules-experienced.md`, `output/svet-moy-zerkalce-rules-experienced.pptx` / PDF; сборка `scripts/build_experienced_rules_pptx.py`.
+
 ## 2026-09-07
 
 - Отдельный файл букв с удвоенными гласными: гласные красные, согласные зелёные. `output/svet-moy-zerkalce-letters-colored.pptx`; сборка `scripts/build_letters_colored_pptx.py`. Канон 72 чёрных карт не менялся.

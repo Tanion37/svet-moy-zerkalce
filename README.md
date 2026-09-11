@@ -11,6 +11,8 @@
 ## Файлы
 
 - [rules.md](rules.md) — правила
+- [rules-experienced.md](rules-experienced.md) — режим «Для опытных» (только отличия)
+- [output/svet-moy-zerkalce-rules-experienced.pptx](output/svet-moy-zerkalce-rules-experienced.pptx) / [PDF](output/svet-moy-zerkalce-rules-experienced.pdf) — буклет режима «Для опытных»
 - [game-content.md](game-content.md) — существа, части запросов
 - [request-combinations.md](request-combinations.md) — все сочетания лицевой × оборотной
 - [output/svet-moy-zerkalce-cards.pptx](output/svet-moy-zerkalce-cards.pptx) / [PDF](output/svet-moy-zerkalce-cards.pdf) — PnP: лица запросов (88×63 мм)

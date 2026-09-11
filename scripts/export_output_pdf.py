@@ -11,6 +11,7 @@ OUT = ROOT / "output"
 
 PPTX_STEMS = (
     "svet-moy-zerkalce-rules",
+    "svet-moy-zerkalce-rules-experienced",
     "svet-moy-zerkalce-cards",
     "svet-moy-zerkalce-card-backs",
     "svet-moy-zerkalce-votes",
